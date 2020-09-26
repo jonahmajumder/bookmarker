@@ -36,7 +36,7 @@ class PDFApp(QMainWindow):
 
         self.currentFile = ''
 
-        self.loadPdf('sample_toc.pdf')
+        # self.loadPdf('sample_toc.pdf')
 
         self.ui.setWindowTitle('PDF App')
 
