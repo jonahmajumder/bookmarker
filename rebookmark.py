@@ -46,6 +46,8 @@ def write_bookmarks_nested(newpdfobj, parentNode=None, parentBookmark=None):
             write_bookmarks_nested(newpdfobj, item, dest)
 
 def writeModelToFile(model, oldfilename, newfilename):
+    print('Requested replace? {}'.format(oldfilename == newfilename))
+
     with open(oldfilename, 'rb') as oldfile:
 
         reader = PdfFileReader(oldfile, strict=False)

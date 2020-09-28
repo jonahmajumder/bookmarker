@@ -7,6 +7,7 @@ from PyQt5.QtCore import QUrl, Qt
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineScript
 
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 
 from rebookmark import parseBookmarksToModel, BookmarkItem, writeModelToFile
 
@@ -16,9 +17,11 @@ with open('functions.js', 'r') as f:
 def asURI(localpath):
     p = Path(localpath)
     assert p.exists()
-
     return p.absolute().as_uri()
 
+def fromURI(fileuri):
+    fullpath = unquote(urlparse(fileuri).path)
+    return fullpath
 
 class PDFApp(QMainWindow):
 
@@ -33,8 +36,6 @@ class PDFApp(QMainWindow):
         self.addWebViewer()
 
         self.connectMenuActions()
-
-        self.currentFile = ''
 
         # self.loadPdf('sample_toc.pdf')
 
@@ -92,6 +93,8 @@ class PDFApp(QMainWindow):
         newBookmark = BookmarkItem('New Bookmark', currentpage)
         self.ui.treeView.model().appendRow(newBookmark)
 
+        self.renameBookmark(newBookmark.index())
+
     def addWebViewer(self):
         sp = QSizePolicy()
         sp.setHorizontalPolicy(QSizePolicy.Expanding)
@@ -107,7 +110,7 @@ class PDFApp(QMainWindow):
 
     def connectMenuActions(self):
         self.ui.actionOpen.triggered.connect(self.selectOpenFile)
-        self.ui.actionExport.triggered.connect(self.selectExportFile)
+        self.ui.actionSaveAs.triggered.connect(self.selectSaveAsFile)
         self.ui.actionQuit.triggered.connect(lambda: QApplication.instance().quit())
 
     def selectOpenFile(self):
@@ -115,10 +118,14 @@ class PDFApp(QMainWindow):
         if len(chosenFile) > 0:
             self.loadPdf(chosenFile)
 
-    def selectExportFile(self):
-        chosenFile, _ = QFileDialog.getSaveFileName(self, 'Export PDF', '', 'PDF files (*.pdf)')
+    def selectSaveAsFile(self):
+        chosenFile, _ = QFileDialog.getSaveFileName(self, 'Save New PDF', '', 'PDF files (*.pdf)')
         if len(chosenFile) > 0:
-            self.exportPdf(chosenFile)
+            self.saveAsPdf(chosenFile)
+
+    def getCurrentFile(self, callback):
+        convertToPath = lambda uri: callback(fromURI(uri))
+        self.browser.page().runJavaScript('getCurrentFileUri()', convertToPath)
 
     def loadPdf(self, pdffile):
         self.loadPdfView(pdffile)
@@ -128,7 +135,6 @@ class PDFApp(QMainWindow):
         pdfURI = asURI(pdffile)
         viewerURI = asURI(self.VIEWER)
         self.browser.load(QUrl.fromUserInput('{0}?file={1}'.format(viewerURI, pdfURI)))
-        self.currentFile = pdffile      
 
     def onPdfLoad(self, loadSuccessful):
         assert loadSuccessful
@@ -142,10 +148,10 @@ class PDFApp(QMainWindow):
         self.ui.treeView.setModel(model)
         self.ui.treeView.setEnabled(False)
 
-    def exportPdf(self, newfile):
+    def saveAsPdf(self, newfile):
         model = self.ui.treeView.model()
 
-        writeModelToFile(model, self.currentFile, newfile)
+        self.getCurrentFile(lambda file: writeModelToFile(model, file, newfile))
 
     def getPageNum(self, callback):
         ret = self.browser.page().runJavaScript('getPageNum()', callback)

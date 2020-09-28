@@ -19,6 +19,10 @@ function setSidebarState(newstate) {
     }
 }
 
+function getCurrentFileUri() {
+    return PDFViewerApplication.url;
+}
+
 // this runs as script (i.e. on file execution)
 
 document.onkeydown = function (e) {
