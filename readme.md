@@ -11,7 +11,7 @@ So, I built a simple Mac/Python application that allows a user to view and edit 
 
 Here's a screenshot of the app in action-- simple but functional.
 
-<img src="pdfapp.png" width="50%">
+<img src="pdfapp.png" width="60%">
 
 ### Dependencies
 
