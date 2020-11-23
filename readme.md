@@ -10,7 +10,8 @@ So, I built a simple Mac/Python application that allows a user to view and edit 
 * [PDF.js](https://mozilla.github.io/pdf.js/), a JavaScript platform to render PDFs in a browser (and in PyQt)
 
 Here's a screenshot of the app in action-- simple but functional.
-![screenshot](pdfapp.png)
+
+![](pdfapp.png | width=100)
 
 ### Dependencies
 
