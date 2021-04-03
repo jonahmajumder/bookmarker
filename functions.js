@@ -5,6 +5,7 @@ function getPageNum() {
 
 function setPageNum(pagenum) {
     PDFViewerApplication.page = pagenum + 1;
+    return;
 }
 
 function getSidebarState() {
@@ -17,18 +18,26 @@ function setSidebarState(newstate) {
     if (newstate != state) {
         document.getElementById("sidebarToggle").click();
     }
+    return;
 }
 
 function showSidebar() {
     setSidebarState(true);
+    return;
 }
 
 function hideSidebar() {
     setSidebarState(false);
+    return;
 }
 
 function getCurrentFileUri() {
     return PDFViewerApplication.url;
+}
+
+function resetZoom() {
+    PDFViewerApplication.zoomReset();
+    return;
 }
 
 // this runs as script (i.e. on file execution)

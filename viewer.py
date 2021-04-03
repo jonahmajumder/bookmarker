@@ -55,6 +55,7 @@ class PDFView(QWebEngineView):
 
             self.getPageNum() # force wait until js functions working
             self.hideSidebar()
+            self.resetZoom()
 
     def loadPdf(self, pdffile):
         self.load(QUrl.fromUserInput(

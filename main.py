@@ -2,7 +2,7 @@
 
 import sys
 from PyQt5 import uic, QtWidgets
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QMenu, QFileDialog
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QMenu, QFileDialog, QMessageBox
 from PyQt5.QtCore import QUrl, Qt
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineScript
 
@@ -18,18 +18,23 @@ class PDFApp(QMainWindow):
         QtWidgets.QDialog.__init__(self)
 
         self.ui = uic.loadUi('main.ui')
+        self.ui.setWindowTitle('PDF Bookmarker')
 
         self.setupTreeView()
         self.addWebViewer()
 
         self.connectMenuActions()
 
+        toLoad = None
         if len(sys.argv) > 1:
             p = Path(sys.argv[1])
             if p.exists() and p.suffix == '.pdf':
-                self.loadPdf(str(p))
+                toLoad = str(p)
 
-        self.ui.setWindowTitle('PDF App')
+        if toLoad is not None:
+            self.loadPdf(toLoad)
+        else:
+            self.selectOpenFile()
 
         self.ui.show()
         self.ui.raise_()
@@ -84,8 +89,10 @@ class PDFApp(QMainWindow):
         model.removeRow(item.row())
 
     def deleteAllBookmarks(self):
-        model = self.ui.treeView.model()
-        model.removeRows(0, model.rowCount())
+        if QMessageBox.critical(self.ui, 'Confirm', 'Are you sure you want to delete all bookmarks?',
+            QMessageBox.Cancel | QMessageBox.Ok, QMessageBox.Ok) == QMessageBox.Ok:
+            model = self.ui.treeView.model()
+            model.removeRows(0, model.rowCount())
 
     def addBookmark(self):
         currentpage = self.browser.getPageNum()
@@ -130,6 +137,7 @@ class PDFApp(QMainWindow):
         self.browser.reload()
 
     def loadPdf(self, pdffile):
+        self.ui.setWindowTitle(Path(pdffile).name)
         self.browser.loadPdf(pdffile)
         model = BookmarkModel(pdffile)
         self.ui.treeView.setModel(model)
