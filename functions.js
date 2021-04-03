@@ -9,7 +9,7 @@ function setPageNum(pagenum) {
 
 function getSidebarState() {
     var cl = document.getElementById("sidebarToggle").getAttribute("class");
-    return cl.split(" ").some(c => c == "toggled")
+    return cl.split(" ").some(c => c == "toggled");
 }
 
 function setSidebarState(newstate) {
@@ -17,6 +17,14 @@ function setSidebarState(newstate) {
     if (newstate != state) {
         document.getElementById("sidebarToggle").click();
     }
+}
+
+function showSidebar() {
+    setSidebarState(true);
+}
+
+function hideSidebar() {
+    setSidebarState(false);
 }
 
 function getCurrentFileUri() {

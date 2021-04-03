@@ -53,7 +53,15 @@
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuBookmark">
+    <property name="title">
+     <string>Bookmarks</string>
+    </property>
+    <addaction name="actionNewBookmark"/>
+    <addaction name="actionClearBookmarks"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuBookmark"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen">
@@ -98,6 +106,28 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionNewBookmark">
+   <property name="text">
+    <string>New Bookmark</string>
+   </property>
+   <property name="toolTip">
+    <string>Bookmark Current Page</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
+   </property>
+  </action>
+  <action name="actionClearBookmarks">
+   <property name="text">
+    <string>Clear Bookmarks</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove All Bookmarks</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+Backspace</string>
    </property>
   </action>
  </widget>

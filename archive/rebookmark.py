@@ -3,6 +3,9 @@ from PyPDF2.generic import Destination
 
 from PyQt5.Qt import QStandardItemModel, QStandardItem, Qt
 
+import os
+from tempfile import NamedTemporaryFile
+
 class BookmarkItem(QStandardItem):
     def __init__(self, title='', page=None):
         super().__init__()
@@ -46,17 +49,17 @@ def write_bookmarks_nested(newpdfobj, parentNode=None, parentBookmark=None):
             write_bookmarks_nested(newpdfobj, item, dest)
 
 def writeModelToFile(model, oldfilename, newfilename):
-    print('Requested replace? {}'.format(oldfilename == newfilename))
+    oldfile = open(oldfilename, 'rb')
+    reader = PdfFileReader(oldfile, strict=False)
+    writer = PdfFileWriter()
+    writer.appendPagesFromReader(reader)
+    write_bookmarks_nested(writer, parentNode=model.invisibleRootItem())
 
-    with open(oldfilename, 'rb') as oldfile:
-
-        reader = PdfFileReader(oldfile, strict=False)
-
-        writer = PdfFileWriter()
-        writer.appendPagesFromReader(reader)
-
-        write_bookmarks_nested(writer, parentNode=model.invisibleRootItem())
-
-        with open(newfilename, 'wb') as newfile:
+    # make new file as temp file regardless, then copy it to relevant file
+    # advantage -- works for both "save as" and "save"
+    with NamedTemporaryFile(delete=False) as temp:
+        with open(temp.name, 'wb') as newfile:
             writer.write(newfile)
+        oldfile.close()
+        os.replace(temp.name, os.path.abspath(newfilename))
 

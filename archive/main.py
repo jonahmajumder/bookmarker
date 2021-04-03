@@ -9,10 +9,23 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEng
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
-from viewer import PDFView
-from bookmarks import BookmarkModel, BookmarkItem
+from rebookmark import parseBookmarksToModel, BookmarkItem, writeModelToFile
+
+with open('functions.js', 'r') as f:
+    jsSource = f.read()
+
+def asURI(localpath):
+    p = Path(localpath)
+    assert p.exists()
+    return p.absolute().as_uri()
+
+def fromURI(fileuri):
+    fullpath = unquote(urlparse(fileuri).path)
+    return fullpath
 
 class PDFApp(QMainWindow):
+
+    VIEWER = 'pdfjs/web/viewer.html'
 
     def __init__(self):
         QtWidgets.QDialog.__init__(self)
@@ -27,7 +40,7 @@ class PDFApp(QMainWindow):
         if len(sys.argv) > 1:
             p = Path(sys.argv[1])
             if p.exists() and p.suffix == '.pdf':
-                self.loadPdf(str(p))
+                self.loadPdf('sample_toc.pdf')
 
         self.ui.setWindowTitle('PDF App')
 
@@ -47,15 +60,11 @@ class PDFApp(QMainWindow):
         self.ui.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.treeView.customContextMenuRequested.connect(self.treeItemRightClick)
 
-        self.ui.treeView.clicked.connect(self.treeItemClick)
         self.ui.treeView.doubleClicked.connect(self.treeItemDoubleClick)
 
-    def treeItemClick(self, index):
-        pg = index.model().itemFromIndex(index).data(Qt.UserRole)
-        self.browser.setPageNum(pg)
-
     def treeItemDoubleClick(self, index):
-        self.renameBookmark(index)
+        pg = index.model().itemFromIndex(index).data(Qt.UserRole)
+        self.setPageNum(pg)
 
     def treeItemRightClick(self, point):
         index = self.ui.treeView.indexAt(point)
@@ -70,7 +79,7 @@ class PDFApp(QMainWindow):
             elif action.text() == 'Delete' and index is not None:
                 self.deleteBookmark(index)
             elif action.text() == 'Add':
-                self.addBookmark()
+                self.getPageNum(self.addBookmark)
 
     def renameBookmark(self, index):
         item = index.model().itemFromIndex(index)
@@ -83,12 +92,7 @@ class PDFApp(QMainWindow):
         item = model.itemFromIndex(index)
         model.removeRow(item.row())
 
-    def deleteAllBookmarks(self):
-        model = self.ui.treeView.model()
-        model.removeRows(0, model.rowCount())
-
-    def addBookmark(self):
-        currentpage = self.browser.getPageNum()
+    def addBookmark(self, currentpage):
         newBookmark = BookmarkItem('New Bookmark', currentpage)
         self.ui.treeView.model().appendRow(newBookmark)
 
@@ -100,19 +104,17 @@ class PDFApp(QMainWindow):
         sp.setVerticalPolicy(QSizePolicy.Expanding)
         sp.setHorizontalStretch(3)
 
-        self.browser = PDFView()
+        self.browser = QWebEngineView()
         self.browser.setSizePolicy(sp)
+
+        self.browser.loadFinished.connect(self.onPdfLoad)
 
         self.ui.hLayout.addWidget(self.browser)
 
     def connectMenuActions(self):
         self.ui.actionOpen.triggered.connect(self.selectOpenFile)
-        self.ui.actionSave.triggered.connect(self.selectSaveFile)
         self.ui.actionSaveAs.triggered.connect(self.selectSaveAsFile)
         self.ui.actionQuit.triggered.connect(lambda: QApplication.instance().quit())
-
-        self.ui.actionNewBookmark.triggered.connect(self.addBookmark)
-        self.ui.actionClearBookmarks.triggered.connect(self.deleteAllBookmarks)
 
     def selectOpenFile(self):
         chosenFile, _ = QFileDialog.getOpenFileName(self, 'Open File', '~', 'PDF files (*.pdf)')
@@ -122,25 +124,47 @@ class PDFApp(QMainWindow):
     def selectSaveAsFile(self):
         chosenFile, _ = QFileDialog.getSaveFileName(self, 'Save New PDF', '', 'PDF files (*.pdf)')
         if len(chosenFile) > 0:
-            self.savePdf(chosenFile)
+            self.saveAsPdf(chosenFile)
 
-    def selectSaveFile(self):
-        file = self.browser.getCurrentFile()
-        self.savePdf(file)
-        self.browser.reload()
+    def getCurrentFile(self, callback):
+        convertToPath = lambda uri: callback(fromURI(uri))
+        self.browser.page().runJavaScript('getCurrentFileUri()', convertToPath)
 
     def loadPdf(self, pdffile):
-        self.browser.loadPdf(pdffile)
-        model = BookmarkModel(pdffile)
-        self.ui.treeView.setModel(model)
+        self.loadPdfView(pdffile)
+        self.loadPdfBookmarks(pdffile)
 
-    def savePdf(self, newfile):
+    def loadPdfView(self, pdffile):
+        pdfURI = asURI(pdffile)
+        viewerURI = asURI(self.VIEWER)
+        self.browser.load(QUrl.fromUserInput('{0}?file={1}'.format(viewerURI, pdfURI)))
+
+    def onPdfLoad(self, loadSuccessful):
+        assert loadSuccessful
+
+        self.browser.page().runJavaScript(jsSource)
+        self.browser.page().runJavaScript("setSidebarState(false);")
+        self.ui.treeView.setEnabled(True)
+
+    def loadPdfBookmarks(self, pdffile):
+        model = parseBookmarksToModel(pdffile)
+        self.ui.treeView.setModel(model)
+        self.ui.treeView.setEnabled(False)
+
+    def saveAsPdf(self, newfile):
         model = self.ui.treeView.model()
-        file = self.browser.getCurrentFile()
-        model.writeToFile(file, newfile)
+
+        self.getCurrentFile(lambda file: writeModelToFile(model, file, newfile))
+
+    def getPageNum(self, callback):
+        ret = self.browser.page().runJavaScript('getPageNum()', callback)
+
+    def setPageNum(self, pagenum):
+        # self.getPageNum(print)
+        self.browser.page().runJavaScript('setPageNum({})'.format(pagenum))
 
 app = QApplication(sys.argv)
-gui = PDFApp()
+window = PDFApp()
 
 if __name__ == '__main__':
     sys.exit(app.exec_())
