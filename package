@@ -14,8 +14,10 @@ rm -rf build dist
 
 pyinstaller --clean PDF\ Bookmarker.spec
 
+rm -rf dist/PDF\ Bookmarker/
+
 # rm -rf ~/Desktop/PDF\ Bookmarker.app
 
 # cp -r ./dist/PDF\ Bookmarker.app ~/Desktop
 
-# hdiutil create -volname PDF\ Bookmarker -srcfolder dist -ov PDF\ Bookmarker.dmg 
+hdiutil create -volname PDF\ Bookmarker -srcfolder dist -ov PDF\ Bookmarker.dmg

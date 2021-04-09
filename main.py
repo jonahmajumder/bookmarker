@@ -11,7 +11,7 @@ from urllib.parse import urlparse, unquote
 
 from viewer import PDFView
 from bookmarks import BookmarkModel, BookmarkItem
-from locations import ResourceFile
+from locations import ResourceFile, DOCUMENTS
 
 DEBUG = True
 DEBUG_PORT = 5000
@@ -154,7 +154,7 @@ class PDFApp(QMainWindow):
             self.ui.splitter.moveSplitter(0, 1)
 
     def selectOpenFile(self):
-        chosenFile, _ = QFileDialog.getOpenFileName(self, 'Open File', '~', 'PDF files (*.pdf)')
+        chosenFile, _ = QFileDialog.getOpenFileName(self, 'Open File', DOCUMENTS, 'PDF files (*.pdf)')
         if len(chosenFile) > 0:
             self.loadPdf(chosenFile)
 

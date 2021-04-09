@@ -22,11 +22,9 @@ else:
 def ResourceFile(path):
     return str(Path.cwd() / RELATIVE_PATH / path)
 
-HOME = Path.home()
+HOME = str(Path.home())
 
-DOWNLOADS = HOME / 'Downloads'
-
-DOCUMENTS = HOME / 'Documents'
+DOCUMENTS = str(HOME / 'Documents')
 
 if IS_BUNDLED:
     # set up app to write to logfile

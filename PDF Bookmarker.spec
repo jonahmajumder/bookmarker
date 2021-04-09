@@ -41,5 +41,5 @@ coll = COLLECT(exe,
                name='PDF Bookmarker')
 app = BUNDLE(coll,
              name='PDF Bookmarker.app',
-             icon=None,
+             icon='icon.icns',
              bundle_identifier=None)
