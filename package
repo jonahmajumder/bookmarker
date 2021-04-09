@@ -1,0 +1,21 @@
+#!/bin/bash
+# package python program to .app
+
+echo "Running script to package PDF app..."
+
+exe=$(which python)
+if [ "$exe" != $HOME/.virtualenvs/pdf2/bin/python ]; then
+    echo "Must be run in 'pdf2' virtualenv!";
+    exit 1;
+fi
+
+# clean directories
+rm -rf build dist
+
+pyinstaller --clean PDF\ Bookmarker.spec
+
+# rm -rf ~/Desktop/PDF\ Bookmarker.app
+
+# cp -r ./dist/PDF\ Bookmarker.app ~/Desktop
+
+# hdiutil create -volname PDF\ Bookmarker -srcfolder dist -ov PDF\ Bookmarker.dmg 

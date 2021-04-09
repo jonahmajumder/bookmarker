@@ -11,13 +11,19 @@ from urllib.parse import urlparse, unquote
 
 from viewer import PDFView
 from bookmarks import BookmarkModel, BookmarkItem
+from locations import ResourceFile
+
+DEBUG = True
+DEBUG_PORT = 5000
+
+print(getattr(sys, '_MEIPASS', False))
 
 class PDFApp(QMainWindow):
 
     def __init__(self):
         QtWidgets.QDialog.__init__(self)
 
-        self.ui = uic.loadUi('main.ui')
+        self.ui = uic.loadUi(ResourceFile('main.ui'))
         self.ui.setWindowTitle('PDF Bookmarker')
 
         self.setupTreeView()
@@ -102,15 +108,13 @@ class PDFApp(QMainWindow):
         self.renameBookmark(newBookmark.index())
 
     def addWebViewer(self):
-        sp = QSizePolicy()
-        sp.setHorizontalPolicy(QSizePolicy.Expanding)
-        sp.setVerticalPolicy(QSizePolicy.Expanding)
-        sp.setHorizontalStretch(3)
-
         self.browser = PDFView()
-        self.browser.setSizePolicy(sp)
+        self.ui.documentLayout.addWidget(self.browser)
 
-        self.ui.hLayout.addWidget(self.browser)
+        self.ui.splitter.setStretchFactor(0,2)
+        self.ui.splitter.setStretchFactor(1,3)
+
+        self.splitterState = self.ui.splitter.saveState()
 
     def connectMenuActions(self):
         self.ui.actionOpen.triggered.connect(self.selectOpenFile)
@@ -118,8 +122,36 @@ class PDFApp(QMainWindow):
         self.ui.actionSaveAs.triggered.connect(self.selectSaveAsFile)
         self.ui.actionQuit.triggered.connect(lambda: QApplication.instance().quit())
 
+        self.ui.actionFind.triggered.connect(self.findInPdf)
+        self.ui.actionShowOutline.setChecked(True)
+        self.ui.actionShowOutline.toggled.connect(self.toggleOutline)
+
         self.ui.actionNewBookmark.triggered.connect(self.addBookmark)
         self.ui.actionClearBookmarks.triggered.connect(self.deleteAllBookmarks)
+        self.ui.actionImportBookmarks.triggered.connect(self.selectImportFile)
+        self.ui.actionExportBookmarks.triggered.connect(self.selectExportFile)
+
+        self.enableMenus(False)
+
+    def enableMenus(self, state):
+        self.ui.actionSave.setEnabled(state)
+        self.ui.actionSaveAs.setEnabled(state)
+        self.ui.actionNewBookmark.setEnabled(state)
+        self.ui.actionClearBookmarks.setEnabled(state)
+        self.ui.actionImportBookmarks.setEnabled(state)
+        self.ui.actionExportBookmarks.setEnabled(state)
+        self.ui.actionFind.setEnabled(state)
+        self.ui.actionShowOutline.setEnabled(state)
+
+    def findInPdf(self):
+        self.browser.openFind()
+
+    def toggleOutline(self, checkState):
+        if checkState and self.ui.splitter.sizes()[0] == 0:
+            self.ui.splitter.restoreState(self.splitterState)
+        elif not checkState and self.ui.splitter.sizes()[0] != 0:
+            self.splitterState = self.ui.splitter.saveState()
+            self.ui.splitter.moveSplitter(0, 1)
 
     def selectOpenFile(self):
         chosenFile, _ = QFileDialog.getOpenFileName(self, 'Open File', '~', 'PDF files (*.pdf)')
@@ -127,7 +159,8 @@ class PDFApp(QMainWindow):
             self.loadPdf(chosenFile)
 
     def selectSaveAsFile(self):
-        chosenFile, _ = QFileDialog.getSaveFileName(self, 'Save New PDF', '', 'PDF files (*.pdf)')
+        filedir = self.browser.getCurrentDir()
+        chosenFile, _ = QFileDialog.getSaveFileName(self, 'Save New PDF', filedir, 'PDF files (*.pdf)')
         if len(chosenFile) > 0:
             self.savePdf(chosenFile)
 
@@ -136,16 +169,40 @@ class PDFApp(QMainWindow):
         self.savePdf(file)
         self.browser.reload()
 
+    def selectImportFile(self):
+        filedir = self.browser.getCurrentDir()
+        chosenFile, _ = QFileDialog.getSaveFileName(self, 'Import Bookmarks', filedir, 'JSON files (*.json)')
+        if len(chosenFile) > 0:
+            self.importBookmarks(chosenFile)
+
+    def selectExportFile(self):
+        filedir = self.browser.getCurrentDir()
+        chosenFile, _ = QFileDialog.getSaveFileName(self, 'Export Bookmarks', filedir, 'JSON files (*.json)')
+        if len(chosenFile) > 0:
+            self.exportBookmarks(chosenFile)
+
     def loadPdf(self, pdffile):
         self.ui.setWindowTitle(Path(pdffile).name)
         self.browser.loadPdf(pdffile)
         model = BookmarkModel(pdffile)
         self.ui.treeView.setModel(model)
 
+        self.enableMenus(True)
+
     def savePdf(self, newfile):
         model = self.ui.treeView.model()
         file = self.browser.getCurrentFile()
-        model.writeToFile(file, newfile)
+        model.writeToPdfFile(file, newfile)
+
+    def importBookmarks(self, file):
+        pass
+
+    def exportBookmarks(self, file):
+        model = self.ui.treeView.model()
+        model.exportJsonBookmarks(file)
+
+if DEBUG:
+    sys.argv.append('--remote-debugging-port={}'.format(DEBUG_PORT))
 
 app = QApplication(sys.argv)
 gui = PDFApp()

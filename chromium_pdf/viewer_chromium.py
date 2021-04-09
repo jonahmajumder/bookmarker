@@ -10,8 +10,6 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QUrl, Qt
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineScript
 
-from locations import ResourceFile
-
 class PDFView(QWebEngineView):
     """
     subclass of QWebEngineView designed to display PDFs
@@ -21,15 +19,15 @@ class PDFView(QWebEngineView):
         re.DOTALL
     )
     jsSourceFiles = [
-        ResourceFile('functions.js')
+        'functions_chromium.js'
     ]
-    viewerHtmlPath = ResourceFile('pdfjs/web/viewer.html')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.loadFinished.connect(self.onLoad)
-        self.loadViewer()
+        self.enableSettings()
+
+        # self.loadFinished.connect(self.onLoad)
 
         if len(args) > 1:
             self.loadPdf(args[1])
@@ -47,33 +45,27 @@ class PDFView(QWebEngineView):
 
     # ---------- INSTANCE METHODS ----------
 
+    def enableSettings(self):
+        self.settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        self.settings().setAttribute(QWebEngineSettings.PdfViewerEnabled, True)
+
     def onLoad(self, success):
         if success:
             for filename in self.jsSourceFiles:
                 with open(filename, 'r') as f:
                     jsSource = f.read()
 
+                self.page().runJavaScript(jsSource)
                 self.loadJsFunctions(jsSource)
 
+            self.getPageNum() # force wait until js functions working
+            self.fitToPage()
+
     def loadPdf(self, pdffile):
-        # self.load(QUrl.fromUserInput(
-        #     '{0}?file={1}'.format(self.asUri(self.viewerHtmlPath), self.asUri(pdffile))
-        # ))
-        self.loadFile(self.asUri(pdffile))
-
-    def loadViewer(self):
-        self.fnsLoaded = False
-        self.load(QUrl.fromUserInput(self.asUri(self.viewerHtmlPath)))
-
-        while not self.fnsLoaded:
-            QApplication.processEvents()
+        self.load(QUrl.fromUserInput(self.asUri(pdffile)))
 
     def getCurrentFile(self):
         return self.fromUri(self.getCurrentFileUri())
-
-    def getCurrentDir(self):
-        p = Path(self.getCurrentFile())
-        return str(p.parent)
 
     # ---------- JS PAGE INTERACTION INSTANCE METHODS ----------
 
@@ -91,14 +83,10 @@ class PDFView(QWebEngineView):
         return lambda self, *args: self.callJsFunction(jsFn, *args)
 
     def loadJsFunctions(self, jsSource):
-        self.page().runJavaScript(jsSource)
-
         self.jsFns = [JsFn(m) for m in self.jsfnRE.finditer(jsSource) if m['name']] # list of named functions
 
         for j in self.jsFns:
             setattr(self, j.name, types.MethodType(self.makeJsMethod(j), self))
-
-        self.fnsLoaded = True
 
 class JsFn(object):
     """
@@ -126,11 +114,15 @@ class JsFn(object):
         self.responseCaptured = True
         self.response = response
 
+debug_port = 5000
+sys.argv.extend(['--remote-debugging-port={}'.format(debug_port), '--single-process'])
+
+app = QApplication(sys.argv)
+w = QMainWindow()
+p = PDFView()
+w.setCentralWidget(p)
+p.loadPdf('sample_toc.pdf')
+w.show()
+
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    w = QMainWindow()
-    p = PDFView()
-    w.setCentralWidget(p)
-    p.loadPdf('sample_toc.pdf')
-    w.show()
     sys.exit(app.exec_())   

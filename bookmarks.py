@@ -4,6 +4,7 @@ from PyPDF2.generic import Destination
 from PyQt5.Qt import QStandardItemModel, QStandardItem, Qt
 
 import os
+import json
 from tempfile import NamedTemporaryFile
 
 class BookmarkItem(QStandardItem):
@@ -12,7 +13,20 @@ class BookmarkItem(QStandardItem):
 
         self.setEditable(False)
         self.setText(title)
+        self.setPage(page)
+
+    def page(self):
+        return self.data(Qt.UserRole)
+
+    def setPage(self, page):
         self.setData(page, Qt.UserRole)
+
+    def toDict(self):
+        return {'text': self.text(), 'page': self.page(), 'children': []}
+
+    @staticmethod
+    def fromDict(itemDict):
+        return BookmarkItem(itemDict['title'], itemDict['page'])
 
 
 class BookmarkModel(QStandardItemModel):
@@ -25,12 +39,12 @@ class BookmarkModel(QStandardItemModel):
         self.reader = None
         self.writer = None
 
-        self.initFromFile(pdffile)
+        self.initFromPdfFile(pdffile)
 
     def clear(self):
         self.removeRows(0, self.rowCount())
 
-    def addBookmark(self, item, parent=None, lastBookmark=None):
+    def addBookmarkNodeFromDest(self, item, parent=None, lastBookmark=None):
         if isinstance(item, Destination):
             bookmark = BookmarkItem(item.title, self.reader.getDestinationPageNumber(item))
             parent.appendRow(bookmark)
@@ -39,9 +53,9 @@ class BookmarkModel(QStandardItemModel):
             parent = lastBookmark
             lastBookmark = None
             for m in item:
-                lastBookmark = self.addBookmark(m, parent, lastBookmark)
+                lastBookmark = self.addBookmarkNodeFromDest(m, parent, lastBookmark)
         
-    def initFromFile(self, filename):
+    def initFromPdfFile(self, filename):
         self.clear()
 
         infile = open(filename, 'rb')
@@ -49,24 +63,24 @@ class BookmarkModel(QStandardItemModel):
 
         # print(reader.outlines)
 
-        self.addBookmark(self.reader.outlines, parent=self, lastBookmark=self.invisibleRootItem())
+        self.addBookmarkNodeFromDest(self.reader.outlines, parent=self, lastBookmark=self.invisibleRootItem())
 
         self.reader = None
         infile.close()
 
-    def writeBookmarks(self, parentNode=None, parentBookmark=None):
+    def writeBookmarks(self, parentNode, parentBookmark=None):
         for row in range(parentNode.rowCount()):
             item = parentNode.child(row)
-            dest = self.writer.addBookmark(item.text(), item.data(Qt.UserRole), parentBookmark)
+            dest = self.writer.addBookmark(item.text(), item.page(), parentBookmark)
             if item.hasChildren():
                 self.writeBookmarks(item, dest)
 
-    def writeToFile(self, oldfilename, newfilename):
+    def writeToPdfFile(self, oldfilename, newfilename):
         oldfile = open(oldfilename, 'rb')
         reader = PdfFileReader(oldfile, strict=False)
         self.writer = PdfFileWriter()
         self.writer.appendPagesFromReader(reader)
-        self.writeBookmarks(parentNode=self.invisibleRootItem())
+        self.writeBookmarks(self.invisibleRootItem())
 
         # make new file as temp file regardless, then copy it to relevant file
         # advantage -- works for both "save as" and "save"
@@ -76,4 +90,41 @@ class BookmarkModel(QStandardItemModel):
             oldfile.close()
             self.writer = None
             os.replace(temp.name, os.path.abspath(newfilename))
+
+    def bookmarkDictionary(self, parentNode):
+        dictList = []
+        for row in range(parentNode.rowCount()):
+            item = parentNode.child(row)
+            itemDict = item.toDict()
+            itemDict['children'] = self.bookmarkDictionary(item) if item.hasChildren() else []
+            dictList.append(itemDict)
+        return dictList
+
+    def fullDictionary(self):
+        return self.bookmarkDictionary(self.invisibleRootItem())
+
+    def exportJsonBookmarks(self, filename):
+        with open(filename, 'w') as f:
+            json.dump(self.fullDictionary(), f, indent=2)
+
+    def initFromJson(self, filename, clear=True):
+        if clear:
+            self.clear()
+
+        with open(filename, 'r') as f:
+            d = json.load(f)
+
+        self.addBookmarkNodeFromDict(d, self.invisibleRootItem())
+
+    def addBookmarkNodeFromDict(self, itemDict, parent):
+        node = BookmarkItem.fromDict(itemDict)
+        parent.appendRow(node)
+        for ch in itemDict['children']:
+            self.addBookmarkNodeFromDict(ch, node)
+
+
+
+
+
+
 
