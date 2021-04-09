@@ -16,8 +16,6 @@ from locations import ResourceFile, DOCUMENTS
 DEBUG = True
 DEBUG_PORT = 5000
 
-print(getattr(sys, '_MEIPASS', False))
-
 class PDFApp(QMainWindow):
 
     def __init__(self):
