@@ -2,7 +2,7 @@
 
 ### Try It Out
 
-Download a DMG of the application [here](https://github.com/jonahmajumder/bookmarker/raw/master/PDF%20Bookmarker.dmg).
+Download (a DMG of) the macOS application [here](https://github.com/jonahmajumder/bookmarker/raw/master/PDF%20Bookmarker.dmg).
 
 ### Background
 

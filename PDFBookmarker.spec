@@ -7,7 +7,6 @@ a = Analysis(['main.py'],
              pathex=['.'],
              binaries=[],
              datas=[
-               ('main.ui', '.'),
                ('functions.js', '.')
              ],
              hiddenimports=[],

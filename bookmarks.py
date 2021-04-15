@@ -61,7 +61,8 @@ class BookmarkModel(QStandardItemModel):
         infile = open(filename, 'rb')
         self.reader = PdfFileReader(infile, strict=False)
 
-        # print(reader.outlines)
+        box = self.reader.getPage(0).mediaBox
+        self.dimensions = [box[2] - box[0], box[3] - box[1]]
 
         self.addBookmarkNodeFromDest(self.reader.outlines, parent=self, lastBookmark=self.invisibleRootItem())
 

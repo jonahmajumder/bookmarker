@@ -1,5 +1,5 @@
 # qevent lookup
-from PyQt5.QtCore import QEvent, QChildEvent
+from PyQt5.QtCore import QEvent
 
 CODE_LOOKUP = {
     0: {

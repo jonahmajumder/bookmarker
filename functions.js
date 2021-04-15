@@ -75,6 +75,11 @@ function getZoomFactor(factor) {
     return PDFViewerApplication.pdfViewer.currentScaleValue;
 }
 
+function getPageDimensions() {
+    var viewer = PDFViewerApplication.pdfViewer.viewer;
+    return [viewer.clientWidth, viewer.clientHeight]
+}
+
 // ---------- MISC ----------
 
 function getCurrentFileUri() {
