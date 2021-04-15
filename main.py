@@ -2,8 +2,8 @@
 
 import sys
 from PyQt5 import uic, QtWidgets
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QMenu, QFileDialog, QMessageBox
-from PyQt5.QtCore import QUrl, Qt
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QSizePolicy, QMenu, QMenuBar, QFileDialog, QMessageBox, qApp
+from PyQt5.QtCore import QUrl, Qt, QEvent, QChildEvent
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineScript
 
 from pathlib import Path
@@ -12,16 +12,14 @@ from urllib.parse import urlparse, unquote
 from viewer import PDFView
 from bookmarks import BookmarkModel, BookmarkItem
 from locations import ResourceFile, DOCUMENTS
+from qevents import EventObj
 
-DEBUG = True
-DEBUG_PORT = 5000
+class PDFAppWindow(QWidget):
 
-class PDFApp(QMainWindow):
-
-    def __init__(self):
+    def __init__(self, toLoad=None, **kwargs):
         QtWidgets.QDialog.__init__(self)
 
-        self.ui = uic.loadUi(ResourceFile('main.ui'))
+        self.ui = uic.loadUi(ResourceFile('mainwidget.ui'))
         self.ui.setWindowTitle('PDF Bookmarker')
 
         self.setupTreeView()
@@ -29,19 +27,30 @@ class PDFApp(QMainWindow):
 
         self.connectMenuActions()
 
-        toLoad = None
-        if len(sys.argv) > 1:
-            p = Path(sys.argv[1])
-            if p.exists() and p.suffix == '.pdf':
-                toLoad = str(p)
+        self.open = True
 
-        if toLoad is not None:
+        if self.isValidPdf(toLoad):
             self.loadPdf(toLoad)
+            self.ui.show()
+            self.ui.raise_()
         else:
-            self.selectOpenFile()
+            chosen = self.selectOpenFile()
+            if not chosen:
+                self.closeFcn()
+            else:
+                self.ui.show()
+                self.ui.raise_()
 
-        self.ui.show()
-        self.ui.raise_()
+    @staticmethod
+    def isValidPdf(file):
+        if file is None:
+            return False
+
+        p = Path(file)
+        if p.exists() and p.suffix == '.pdf':
+            return True
+        else:
+            return False
 
     def setupTreeView(self):
         self.ui.treeView.setHeaderHidden(True)
@@ -118,7 +127,8 @@ class PDFApp(QMainWindow):
         self.ui.actionOpen.triggered.connect(self.selectOpenFile)
         self.ui.actionSave.triggered.connect(self.selectSaveFile)
         self.ui.actionSaveAs.triggered.connect(self.selectSaveAsFile)
-        self.ui.actionQuit.triggered.connect(lambda: QApplication.instance().quit())
+        self.ui.actionClose.triggered.connect(self.closeFcn)
+        self.ui.actionQuit.triggered.connect(sys.exit)
 
         self.ui.actionFind.triggered.connect(self.findInPdf)
         self.ui.actionShowOutline.setChecked(True)
@@ -151,10 +161,29 @@ class PDFApp(QMainWindow):
             self.splitterState = self.ui.splitter.saveState()
             self.ui.splitter.moveSplitter(0, 1)
 
-    def selectOpenFile(self):
+    def closeFcn(self):
+        self.close()
+        self.open = False
+        if self in QApplication.instance().windows:
+            QApplication.instance().windows.remove(self)
+
+    def event(self, event):
+        print('(Window event) {}'.format(EventObj(event)))
+        # if isinstance(event, QChildEvent):
+        #     print(event.child())
+
+        return super(PDFAppWindow, self).event(event)
+
+    def selectOpenFile(self, newWindow=True):
         chosenFile, _ = QFileDialog.getOpenFileName(self, 'Open File', DOCUMENTS, 'PDF files (*.pdf)')
         if len(chosenFile) > 0:
-            self.loadPdf(chosenFile)
+            if self.browser.isFileLoaded():
+                QApplication.instance().newWindow(chosenFile)
+            else:
+                self.loadPdf(chosenFile)
+            return True
+        else:
+            return False
 
     def selectSaveAsFile(self):
         filedir = self.browser.getCurrentDir()
@@ -199,11 +228,56 @@ class PDFApp(QMainWindow):
         model = self.ui.treeView.model()
         model.exportJsonBookmarks(file)
 
-if DEBUG:
-    sys.argv.append('--remote-debugging-port={}'.format(DEBUG_PORT))
+class HandlerApp(QApplication):
+    """
+    docstring for HandlerApp
+    """
+    DEBUG_PORT = 5000
+    LOCATION = DOCUMENTS
 
-app = QApplication(sys.argv)
-gui = PDFApp()
+    def __init__(self, *args, **kwargs):
+        toLoad = args[0][1] if len(args[0]) > 1 else None
+
+        if kwargs.pop('web_debug', False):
+            args[0].append('--remote-debugging-port={}'.format(self.DEBUG_PORT))
+        super(HandlerApp, self).__init__(*args, **kwargs)
+
+        self.createMenu()
+
+        self.windows = []
+        # if not self.anyWindows():
+        #     self.newWindow(toLoad)
+
+        # if not self.anyWindows():
+        #     sys.exit()
+
+    def createMenu(self):
+        self.menuBar = QMenuBar()
+        self.fileMenu = self.menuBar.addMenu('File')
+        self.fileMenu.addAction('Open', self.selectOpenFile, 'Ctrl+O')
+
+    def selectOpenFile(self):
+        chosenFile, _ = QFileDialog.getOpenFileName(None, 'Open File', self.LOCATION, 'PDF files (*.pdf)')
+        if len(chosenFile) > 0:
+            self.newWindow(chosenFile)
+
+    def event(self, event):
+        # print('(Application event) {}'.format(EventObj(event))
+        if event.type() == QEvent.FileOpen:
+            self.newWindow(event.file())
+        
+        return super(HandlerApp, self).event(event)
+
+    def newWindow(self, toLoad=None):
+        w = PDFAppWindow(toLoad)
+        if w.open:
+            self.windows.append(w)
+
+    def anyWindows(self):
+        return len(self.windows) > 0
+
+app = HandlerApp(sys.argv, web_debug=False)
 
 if __name__ == '__main__':
+    # gui = PDFAppWindow(sys.argv[1])
     sys.exit(app.exec_())

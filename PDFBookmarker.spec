@@ -40,6 +40,21 @@ coll = COLLECT(exe,
                upx_exclude=[],
                name='PDF Bookmarker')
 app = BUNDLE(coll,
-             name='PDF Bookmarker.app',
-             icon='icon.icns',
-             bundle_identifier=None)
+              name='PDF Bookmarker.app',
+              icon='icon.icns',
+              bundle_identifier=None,
+              info_plist={
+                'CFBundleDocumentTypes': [
+                  {
+                    'CFBundleTypeName': 'pdf',
+                    'CFBundleTypeExtensions': ['pdf'],
+                    'CFBundleTypeRole': 'Editor',
+                    'LSItemContentTypes': ['com.adobe.pdf'],
+                    'LSHandlerRank': 'Default'
+                  }
+                ]
+              }
+              )
+
+
+

@@ -71,6 +71,9 @@ class PDFView(QWebEngineView):
     def getCurrentFile(self):
         return self.fromUri(self.getCurrentFileUri())
 
+    def isFileLoaded(self):
+        return len(self.getCurrentFile()) > 0
+
     def getCurrentDir(self):
         p = Path(self.getCurrentFile())
         return str(p.parent)
