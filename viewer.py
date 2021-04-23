@@ -8,7 +8,8 @@ from urllib.parse import urlparse, unquote
 from pathlib import Path
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QUrl, Qt
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineScript
+from PyQt5.QtGui import QDesktopServices
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineSettings, QWebEngineScript
 
 from locations import ResourceFile
 
@@ -63,6 +64,8 @@ class PDFView(QWebEngineView):
 
     def loadViewer(self):
         self.fnsLoaded = False
+        self.pageObj = CustomPage(self)
+        self.setPage(self.pageObj)
         self.load(QUrl.fromUserInput(self.asUri(self.viewerHtmlPath)))
 
         while not self.fnsLoaded:
@@ -102,6 +105,23 @@ class PDFView(QWebEngineView):
             setattr(self, j.name, types.MethodType(self.makeJsMethod(j), self))
 
         self.fnsLoaded = True
+
+class CustomPage(QWebEnginePage):
+    """
+    docstring for CustomPage
+    """
+    def __init__(self, *args, **kwargs):
+        super(CustomPage, self).__init__(*args, **kwargs)
+        
+    def acceptNavigationRequest(self, qurl, navtype, mainframe):
+        # print('Navigation Url: {}'.format(qurl))
+        # print('Navigation Type: {}'.format(navtype))
+        # return True
+        if navtype == QWebEnginePage.NavigationTypeTyped:  # open in QWebEngineView
+            return True
+        else:  # delegate link to default browser
+            QDesktopServices.openUrl(qurl)
+            return False
 
 class JsFn(object):
     """

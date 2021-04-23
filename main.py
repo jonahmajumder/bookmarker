@@ -27,7 +27,6 @@ class PDFAppWindow(QWidget):
         self.setWindowTitle('PDF Bookmarker')
 
         self.setupUi()
-        self.createMenus()
 
         if self.isValidPdf(toLoad):
             self.loadPdf(toLoad)
@@ -155,58 +154,6 @@ class PDFAppWindow(QWidget):
 
         self.renameBookmark(newBookmark.index())
 
-    def createMenus(self):
-        self.menuBar = QMenuBar(self)
-
-        self.menuFile = self.menuBar.addMenu('File')
-        self.actionOpen = self.menuFile.addAction('Open...', self.selectOpenFile, 'Ctrl+O')
-        self.actionOpen.setToolTip('Open New PDF')
-        self.actionSave = self.menuFile.addAction('Save', self.selectSaveFile, 'Ctrl+S')
-        self.actionSave.setToolTip('Save (Overwrite) PDF with Bookmarks')
-        self.actionSaveAs = self.menuFile.addAction('Save As...', self.selectSaveAsFile, 'Ctrl+Shift+S')
-        self.actionSaveAs.setToolTip('Save (New) PDF with Bookmarks')
-        self.actionClose = self.menuFile.addAction('Close Window', self.closeFcn, 'Ctrl+W')
-        self.actionClose.setToolTip('Close Current PDF')
-        self.menuFile.addSeparator()
-        self.actionQuit = self.menuFile.addAction('Quit', sys.exit, 'Ctrl+Alt+Q')
-        self.actionQuit.setToolTip('Quit Application (Close All Windows)')
-
-        self.menuEdit = self.menuBar.addMenu('Edit')
-        self.actionFind = self.menuEdit.addAction('Find...', self.findInPdf, 'Ctrl+F')
-        self.actionFind.setToolTip('Find in PDF')
-
-        self.menuView = self.menuBar.addMenu('View')
-        self.actionShowOutline = self.menuView.addAction('Show Outline')
-        self.actionShowOutline.toggled.connect(self.toggleOutline)
-        self.actionShowOutline.setShortcut('Ctrl+Shift+O')
-        self.actionShowOutline.setCheckable(True)
-        self.actionShowOutline.setChecked(True)
-        self.actionShowOutline.setToolTip('Show/Hide Outline Sidebar')
-        self.menuView.addSeparator()
-
-        self.menuBookmark = self.menuBar.addMenu('Bookmarks')
-        self.actionNewBookmark = self.menuBookmark.addAction('New Bookmark', self.addBookmark, 'Ctrl+B')
-        self.actionNewBookmark.setToolTip('Bookmark Current Page')
-        self.actionClearBookmarks = self.menuBookmark.addAction('Clear Bookmarks', self.deleteAllBookmarks, 'Ctrl+Shift+D')
-        self.actionClearBookmarks.setToolTip('Remove All Bookmarks')
-        self.menuBookmark.addSeparator()
-        self.actionImportBookmarks = self.menuBookmark.addAction('Import Bookmarks', self.selectImportFile, 'Ctrl+I')
-        self.actionImportBookmarks.setToolTip('Import Bookmarks from File')
-        self.actionExportBookmarks = self.menuBookmark.addAction('Export Bookmarks', self.selectExportFile, 'Ctrl+E')
-        self.actionExportBookmarks.setToolTip('Export Bookmarks to File')
-
-        self.enableMenus(False)
-
-    def enableMenus(self, state):
-        self.actionSave.setEnabled(state)
-        self.actionSaveAs.setEnabled(state)
-        self.actionNewBookmark.setEnabled(state)
-        self.actionClearBookmarks.setEnabled(state)
-        self.actionImportBookmarks.setEnabled(state)
-        self.actionExportBookmarks.setEnabled(state)
-        self.actionFind.setEnabled(state)
-        self.actionShowOutline.setEnabled(state)
-
     def findInPdf(self):
         self.browser.openFind()
 
@@ -218,14 +165,21 @@ class PDFAppWindow(QWidget):
             self.splitter.moveSplitter(0, 1)
 
     def closeFcn(self):
+        QApplication.instance().currentWindow = None
+        QApplication.instance().enableMenus(False)
         if self in QApplication.instance().windowList:
             QApplication.instance().windowList.remove(self)
 
+        self.deleteLater()
+
     def event(self, event):
         # ev = EventObj(event)
-        # print('(Window event) {}'.format())
+        # print('(Window event) {}'.format(ev))
         if event.type() == QEvent.Close:
-            self.deleteLater()
+            self.closeFcn()
+        elif event.type() == QEvent.WindowActivate:
+            QApplication.instance().currentWindow = self
+            QApplication.instance().enableMenus(True)
 
         return super(PDFAppWindow, self).event(event)
 
@@ -261,8 +215,6 @@ class PDFAppWindow(QWidget):
         model = BookmarkModel(pdffile)
         self.treeView.setModel(model)
 
-        self.enableMenus(True)
-
     def savePdf(self, newfile):
         model = self.treeView.model()
         file = self.browser.getCurrentFile()
@@ -290,12 +242,13 @@ class HandlerApp(QApplication):
             args[0].append('--remote-debugging-port={}'.format(self.DEBUG_PORT))
         super(HandlerApp, self).__init__(*args, **kwargs)
 
-        self.createMenu()
-
         self.setQuitOnLastWindowClosed(False)
         self.lastWindowClosed.connect(lambda: 'last window closed!')
 
         self.windowList = []
+        self.currentWindow = None
+
+        self.createMenus()
 
         if PDFAppWindow.isValidPdf(toLoad):
             self.newWindow(toLoad)
@@ -305,11 +258,58 @@ class HandlerApp(QApplication):
             # if not chosen:
             #     sys.exit()
 
-    def createMenu(self):
+    def createMenus(self):
         self.menuBar = QMenuBar()
-        self.fileMenu = self.menuBar.addMenu('File')
-        self.fileMenu.addAction('Open', self.selectOpenFile, 'Ctrl+O')
-        self.fileMenu.addAction('Quit', sys.exit, 'Ctrl+Q')
+
+        self.menuFile = self.menuBar.addMenu('File')
+        self.actionOpen = self.menuFile.addAction('Open...', self.selectOpenFile, 'Ctrl+O')
+        self.actionOpen.setToolTip('Open New PDF')
+        self.actionSave = self.menuFile.addAction('Save', self.selectSaveFile, 'Ctrl+S')
+        self.actionSave.setToolTip('Save (Overwrite) PDF with Bookmarks')
+        self.actionSaveAs = self.menuFile.addAction('Save As...', self.selectSaveAsFile, 'Ctrl+Shift+S')
+        self.actionSaveAs.setToolTip('Save (New) PDF with Bookmarks')
+        self.actionClose = self.menuFile.addAction('Close Window', self.closeFcn, 'Ctrl+W')
+        self.actionClose.setToolTip('Close Current PDF')
+        self.menuFile.addSeparator()
+        self.actionQuit = self.menuFile.addAction('Quit', sys.exit, 'Ctrl+Alt+Q')
+        self.actionQuit.setToolTip('Quit Application (Close All Windows)')
+
+        self.menuEdit = self.menuBar.addMenu('Edit')
+        self.actionFind = self.menuEdit.addAction('Find...', self.findInPdf, 'Ctrl+F')
+        self.actionFind.setToolTip('Find in PDF')
+
+        self.menuView = self.menuBar.addMenu('View')
+        self.actionShowOutline = self.menuView.addAction('Show Outline')
+        self.actionShowOutline.toggled.connect(self.toggleOutline)
+        self.actionShowOutline.setShortcut('Ctrl+Shift+O')
+        self.actionShowOutline.setCheckable(True)
+        self.actionShowOutline.setChecked(True)
+        self.actionShowOutline.setToolTip('Show/Hide Outline Sidebar')
+        self.menuView.addSeparator()
+
+        self.menuBookmark = self.menuBar.addMenu('Bookmarks')
+        self.actionNewBookmark = self.menuBookmark.addAction('New Bookmark', self.addBookmark, 'Ctrl+B') # fcn
+        self.actionNewBookmark.setToolTip('Bookmark Current Page')
+        self.actionClearBookmarks = self.menuBookmark.addAction('Clear Bookmarks', self.deleteAllBookmarks, 'Ctrl+Shift+D') # fcn
+        self.actionClearBookmarks.setToolTip('Remove All Bookmarks')
+        self.menuBookmark.addSeparator()
+        self.actionImportBookmarks = self.menuBookmark.addAction('Import Bookmarks', self.selectImportFile, 'Ctrl+I') # fcn
+        self.actionImportBookmarks.setToolTip('Import Bookmarks from File')
+        self.actionExportBookmarks = self.menuBookmark.addAction('Export Bookmarks', self.selectExportFile, 'Ctrl+E') # fcn
+        self.actionExportBookmarks.setToolTip('Export Bookmarks to File')
+
+        self.enableMenus(False)
+
+    def enableMenus(self, state):
+        self.actionSave.setEnabled(state)
+        self.actionSaveAs.setEnabled(state)
+        self.actionClose.setEnabled(state)
+        self.actionNewBookmark.setEnabled(state)
+        self.actionClearBookmarks.setEnabled(state)
+        self.actionImportBookmarks.setEnabled(state)
+        self.actionExportBookmarks.setEnabled(state)
+        self.actionFind.setEnabled(state)
+        self.actionShowOutline.setEnabled(state)
 
     def selectOpenFile(self):
         chosenFile, _ = QFileDialog.getOpenFileName(None, 'Open File', self.LOCATION, 'PDF files (*.pdf)')
@@ -319,10 +319,47 @@ class HandlerApp(QApplication):
         else:
             return False
 
+    def selectSaveFile(self):
+        if self.currentWindow is not None:
+            self.currentWindow.selectSaveFile()
+
+    def selectSaveAsFile(self):
+        if self.currentWindow is not None:
+            self.currentWindow.selectSaveAsFile()
+
+    def closeFcn(self):
+        if self.currentWindow is not None:
+            self.currentWindow.closeFcn()
+
+    def findInPdf(self):
+        if self.currentWindow is not None:
+            self.currentWindow.findInPdf()
+
+    def toggleOutline(self, checkState):
+        if self.currentWindow is not None:
+            self.currentWindow.toggleOutline(checkState)
+
+    def addBookmark(self):
+        if self.currentWindow is not None:
+            self.currentWindow.addBookmark()
+
+    def deleteAllBookmarks(self):
+        if self.currentWindow is not None:
+            self.currentWindow.deleteAllBookmarks()
+
+    def selectImportFile(self):
+        if self.currentWindow is not None:
+            self.currentWindow.selectImportFile()
+
+    def selectExportFile(self):
+        if self.currentWindow is not None:
+            self.currentWindow.selectExportFile()
+
     def event(self, event):
         # print('(Application event) {}'.format(EventObj(event)))
         if event.type() == QEvent.FileOpen:
-            self.newWindow(event.file())
+            if PDFAppWindow.isValidPdf(event.file()):
+                self.newWindow(event.file())
         
         return super(HandlerApp, self).event(event)
 
