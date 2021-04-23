@@ -1,8 +1,13 @@
-altgraph==0.17
-macholib==1.14
-pyinstaller==5.0.dev0
-pyinstaller-hooks-contrib==2021.1
-PyPDF2==1.26.0
-PyQt5==5.15.0
-PyQt5-sip==12.8.0
-PyQtWebEngine==5.15.0
+Package                   Version 
+------------------------- --------
+altgraph                  0.17    
+macholib                  1.14    
+pip                       20.0.2  
+pyinstaller               5.0.dev0
+pyinstaller-hooks-contrib 2021.1  
+PyPDF2                    1.26.0  
+PyQt5                     5.15.0  
+PyQt5-sip                 12.8.0  
+PyQtWebEngine             5.15.0  
+setuptools                45.2.0  
+wheel                     0.34.2  
