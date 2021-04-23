@@ -17,7 +17,7 @@ from urllib.parse import urlparse, unquote
 from viewer import PDFView
 from bookmarks import BookmarkModel, BookmarkItem
 from locations import ResourceFile, DOCUMENTS
-from qevents import EventObj
+from events import EventObj
 
 class PDFAppWindow(QWidget):
 
@@ -233,6 +233,7 @@ class HandlerApp(QApplication):
     """
     DEBUG_PORT = 5000
     LOCATION = DOCUMENTS
+    LoadedEvent = QEvent.User + 1
 
     def __init__(self, *args, **kwargs):
         sysargs = args[0]
@@ -253,8 +254,13 @@ class HandlerApp(QApplication):
         if PDFAppWindow.isValidPdf(toLoad):
             self.newWindow(toLoad)
 
-        if not self.anyWindows():
-            chosen = self.selectOpenFile()
+        self.processEvents()
+
+        # send event that will fire after 
+        self.postEvent(self, QEvent(self.LoadedEvent), Qt.LowEventPriority)
+
+        # if not self.anyWindows():
+        #     chosen = self.selectOpenFile()
             # if not chosen:
             #     sys.exit()
 
@@ -360,6 +366,11 @@ class HandlerApp(QApplication):
         if event.type() == QEvent.FileOpen:
             if PDFAppWindow.isValidPdf(event.file()):
                 self.newWindow(event.file())
+        elif event.type() == self.LoadedEvent:
+            # print('Loaded Event - {} windows'.format(len(self.windows())))
+            if not self.anyWindows():
+                print('Loaded Event received with no windows, opening new window.')
+                chosen = self.selectOpenFile()
         
         return super(HandlerApp, self).event(event)
 
