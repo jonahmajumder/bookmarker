@@ -199,7 +199,7 @@ class PDFAppWindow(QWidget):
 
     def selectImportFile(self):
         filedir = self.browser.getCurrentDir()
-        chosenFile, _ = QFileDialog.getSaveFileName(self, 'Import Bookmarks', filedir, 'JSON files (*.json)')
+        chosenFile, _ = QFileDialog.getOpenFileName(self, 'Import Bookmarks', filedir, 'JSON files (*.json)')
         if len(chosenFile) > 0:
             self.importBookmarks(chosenFile)
 
@@ -221,7 +221,8 @@ class PDFAppWindow(QWidget):
         model.writeToPdfFile(file, newfile)
 
     def importBookmarks(self, file):
-        pass
+        model = self.treeView.model()
+        model.initFromJson(file)
 
     def exportBookmarks(self, file):
         model = self.treeView.model()

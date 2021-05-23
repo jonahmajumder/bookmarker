@@ -1,5 +1,6 @@
 from PyPDF2 import PdfFileWriter, PdfFileReader
 from PyPDF2.generic import Destination
+from PyPDF2.utils import PdfReadError
 
 from PyQt5.Qt import QStandardItemModel, QStandardItem, Qt
 
@@ -26,7 +27,7 @@ class BookmarkItem(QStandardItem):
 
     @staticmethod
     def fromDict(itemDict):
-        return BookmarkItem(itemDict['title'], itemDict['page'])
+        return BookmarkItem(itemDict['text'], itemDict['page'])
 
 
 class BookmarkModel(QStandardItemModel):
@@ -64,7 +65,10 @@ class BookmarkModel(QStandardItemModel):
         box = self.reader.getPage(0).mediaBox
         self.dimensions = [box[2] - box[0], box[3] - box[1]]
 
-        self.addBookmarkNodeFromDest(self.reader.outlines, parent=self, lastBookmark=self.invisibleRootItem())
+        try:
+            self.addBookmarkNodeFromDest(self.reader.outlines, parent=self, lastBookmark=self.invisibleRootItem())
+        except PdfReadError:
+            pass
 
         self.reader = None
         infile.close()
@@ -115,7 +119,10 @@ class BookmarkModel(QStandardItemModel):
         with open(filename, 'r') as f:
             d = json.load(f)
 
-        self.addBookmarkNodeFromDict(d, self.invisibleRootItem())
+        if isinstance(d, dict):
+            self.addBookmarkNodeFromDict(d, self.invisibleRootItem())
+        elif isinstance(d, list):
+            [self.addBookmarkNodeFromDict(dd, self.invisibleRootItem()) for dd in d]       
 
     def addBookmarkNodeFromDict(self, itemDict, parent):
         node = BookmarkItem.fromDict(itemDict)
